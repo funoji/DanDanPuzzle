@@ -10,7 +10,10 @@ interface IState
         Control = 0,
         GameOver = 1,
         Falling = 2,
+        Erasing = 3,
+
         MAX,
+
         Unchanged,
     }
 
@@ -36,6 +39,7 @@ public class PlayDirector : MonoBehaviour
         new ControlState(),
         new GameOverState(),
         new FallingState(),
+        new ErasingState(),
     };
 
     // Start is called before the first frame update
@@ -47,6 +51,7 @@ public class PlayDirector : MonoBehaviour
         _playerController.SetLogicalInput(_logicalInput);
 
         _nextQueue.Initialize();
+        // 状態の初期化
         InitializeState();
     }
 
@@ -57,7 +62,7 @@ public class PlayDirector : MonoBehaviour
         });
     }
 
-    static readonly KeyCode[] key_code_tbl = new KeyCode[(int)LogicalInput.Key.Max]{
+    static readonly KeyCode[] key_code_tbl = new KeyCode[(int)LogicalInput.Key.MAX]{
         KeyCode.RightArrow, // Right
         KeyCode.LeftArrow,  // Left
         KeyCode.X,          // RotR
@@ -69,9 +74,10 @@ public class PlayDirector : MonoBehaviour
     // 入力を取り込む
     void UpdateInput()
     {
-        LogicalInput.Key inputDev = 0;
+        LogicalInput.Key inputDev = 0;// デバイス値
 
-        for (int i = 0; i < (int)LogicalInput.Key.Max; i++)
+        // キー入力取得
+        for (int i = 0; i < (int)LogicalInput.Key.MAX; i++)
         {
             if (Input.GetKey(key_code_tbl[i]))
             {
@@ -104,7 +110,7 @@ public class PlayDirector : MonoBehaviour
     {
         public IState.E_State Initialize(PlayDirector parent)
         {
-            SceneManager.LoadScene(0);
+            SceneManager.LoadScene(0);// リトライ
             return IState.E_State.Unchanged;
         }
         public IState.E_State Update(PlayDirector parent) { return IState.E_State.Unchanged; }
@@ -114,11 +120,23 @@ public class PlayDirector : MonoBehaviour
     {
         public IState.E_State Initialize(PlayDirector parent)
         {
-            return parent._boardController.CheckFall() ? IState.E_State.Unchanged : IState.E_State.Control;
+            return parent._boardController.CheckFall() ? IState.E_State.Unchanged : IState.E_State.Erasing;
         }
         public IState.E_State Update(PlayDirector parent)
         {
-            return parent._boardController.Fall() ? IState.E_State.Unchanged : IState.E_State.Control;
+            return parent._boardController.Fall() ? IState.E_State.Unchanged : IState.E_State.Erasing;
+        }
+    }
+
+    class ErasingState : IState
+    {
+        public IState.E_State Initialize(PlayDirector parent)
+        {
+            return parent._boardController.CheckErase() ? IState.E_State.Unchanged : IState.E_State.Control;
+        }
+        public IState.E_State Update(PlayDirector parent)
+        {
+            return parent._boardController.Erase() ? IState.E_State.Unchanged : IState.E_State.Falling;
         }
     }
 
@@ -131,7 +149,7 @@ public class PlayDirector : MonoBehaviour
         if (next_state != IState.E_State.Unchanged)
         {
             _current_state = next_state;
-            InitializeState();
+            InitializeState();// 初期化で状態が変わるようなら、再帰的に初期を呼び出す
         }
     }
 
@@ -142,6 +160,7 @@ public class PlayDirector : MonoBehaviour
         var next_state = states[(int)_current_state].Update(this);
         if (next_state != IState.E_State.Unchanged)
         {
+            // 次の状態に遷移
             _current_state = next_state;
             InitializeState();
         }
@@ -150,6 +169,7 @@ public class PlayDirector : MonoBehaviour
     // Update is called once per frame
     void FixedUpdate()
     {
+        // 入力を取り込む
         UpdateInput();
 
         UpdateState();
