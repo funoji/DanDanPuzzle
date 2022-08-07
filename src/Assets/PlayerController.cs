@@ -22,10 +22,34 @@ public class PlayerController : MonoBehaviour
     Vector2Int _last_position;
     RotState _last_rotate = RotState.Up;
     RotState _rotate = RotState.Up;
-    const float TRANS_TIME = 0.05f;
-    const float ROT_TIME = 0.05f;
+    const int TRANS_TIME = 3;
+    const int ROT_TIME = 3;
 
-    void SetTransition(Vector2Int pos,RotState rot,float time)
+    LogicalInput logical = new();
+    static readonly KeyCode[] key_Code_tbl = new KeyCode[(int)LogicalInput.Key.Max]
+    {
+        KeyCode.RightArrow,
+        KeyCode.LeftArrow,
+        KeyCode.X,
+        KeyCode.Z,
+        KeyCode.UpArrow,
+        KeyCode.DownArrow
+    };
+
+    void UpdateInput()
+    {
+        LogicalInput.Key inputDev = 0;
+
+        for(int i = 0; i < (int)LogicalInput.Key.Max; i++)
+        {
+            if(Input.GetKey(key_Code_tbl[i]))
+            {
+                inputDev |= (LogicalInput.Key)(1 << i);
+            }
+        }
+        logical.Update(inputDev);
+    }
+    void SetTransition(Vector2Int pos,RotState rot,int time)
     {
         _last_position = _position;
         _last_rotate = _rotate;
@@ -148,32 +172,34 @@ public class PlayerController : MonoBehaviour
 
     void Control()
     {
-        if (Input.GetKeyDown(KeyCode.RightArrow))
+        if (logical.IsRepeat(LogicalInput.Key.Right))
         {
             if (Translate(true)) return;
         }
-        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        if (logical.IsRepeat(LogicalInput.Key.Left))
         {
             if (Translate(false)) return;
         }
-        if (Input.GetKeyDown(KeyCode.X))
+        if (logical.IsTrigger(LogicalInput.Key.RotR))
         {
             if (Rotate(true)) return;
         }
-        if (Input.GetKeyDown(KeyCode.Z))
+        if (logical.IsTrigger(LogicalInput.Key.RotL))
         {
             if (Rotate(false)) return;
         }
-        if (Input.GetKeyDown(KeyCode.UpArrow))
+        if (logical.IsRelease(LogicalInput.Key.QuickDrop))
         {
             QuickDrop();
         }
     }
 
     // Update is called once per frame
-    void Update()
+    void FixedUpdate()
     {
-        if(!_animationController.Update(Time.deltaTime))
+        UpdateInput();
+
+        if (!_animationController.Update())
         {
             Control();
         }
@@ -201,5 +227,4 @@ public class PlayerController : MonoBehaviour
         theta = theta0 +rate * theta;
         return p + new Vector3(Mathf.Sin(theta), Mathf.Cos(theta), 0.0f);
     }
-
 }
