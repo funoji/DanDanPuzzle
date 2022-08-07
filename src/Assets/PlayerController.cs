@@ -24,7 +24,13 @@ public class PlayerController : MonoBehaviour
     RotState _rotate = RotState.Up;
     const int TRANS_TIME = 3;
     const int ROT_TIME = 3;
+    const int FALL_COUNT_UNIT = 120;
+    const int FALL_COUNT_SPD = 10;
+    const int FALL_COUNT_FAST_SPD = 20;
+    const int GROUND_FRAMES = 50;
 
+    int _fallCount = 0;
+    int _groundFrame = GROUND_FRAMES;
     LogicalInput logical = new();
     static readonly KeyCode[] key_Code_tbl = new KeyCode[(int)LogicalInput.Key.Max]
     {
@@ -40,16 +46,16 @@ public class PlayerController : MonoBehaviour
     {
         LogicalInput.Key inputDev = 0;
 
-        for(int i = 0; i < (int)LogicalInput.Key.Max; i++)
+        for (int i = 0; i < (int)LogicalInput.Key.Max; i++)
         {
-            if(Input.GetKey(key_Code_tbl[i]))
+            if (Input.GetKey(key_Code_tbl[i]))
             {
                 inputDev |= (LogicalInput.Key)(1 << i);
             }
         }
         logical.Update(inputDev);
     }
-    void SetTransition(Vector2Int pos,RotState rot,int time)
+    void SetTransition(Vector2Int pos, RotState rot, int time)
     {
         _last_position = _position;
         _last_rotate = _rotate;
@@ -62,7 +68,7 @@ public class PlayerController : MonoBehaviour
 
     private bool Translate(bool is_right)
     {
-        Vector2Int pos = _position + (is_right ? Vector2Int.right: Vector2Int. left);
+        Vector2Int pos = _position + (is_right ? Vector2Int.right : Vector2Int.left);
         if (!CanMove(pos, _rotate)) return false;
 
         SetTransition(pos, _rotate, TRANS_TIME);
@@ -151,6 +157,15 @@ public class PlayerController : MonoBehaviour
 
         return true;
     }
+    void Settle()
+    {
+        bool is_set0 = boardController.Settle(_position, (int)_puyoControllers[0].GetPuyoType());
+        Debug.Assert(is_set0);
+        bool is_set1 = boardController.Settle(CalcChildPuyoPos(_position, _rotate), (int)_puyoControllers[1].GetPuyoType());
+        Debug.Assert(is_set1);
+
+        gameObject.SetActive(false);
+    }
     void QuickDrop()
     {
         // —Ž‚¿‚ê‚éˆê”Ô‰º‚Ü‚Å—Ž‚¿‚é Vector2Int pos = _position:
@@ -161,17 +176,34 @@ public class PlayerController : MonoBehaviour
         } while (CanMove(pos, _rotate));
         pos -= Vector2Int.down;// ˆê‚Âã‚ÌêŠ (ÅŒã‚É’u‚¯‚½êŠ) ‚É–ß‚·
         _position = pos;
-
-        bool is_set0 = boardController.Settle(_position, (int)_puyoControllers[0].GetPuyoType()); 
-        Debug.Assert(is_set0);
-        bool is_set1 = boardController.Settle(CalcChildPuyoPos(_position, _rotate), (int)_puyoControllers[1].GetPuyoType()); 
-        Debug.Assert(is_set1);
-   
-        gameObject.SetActive(false);
+        Settle();
     }
 
+    bool Fall(bool is_fsat)
+    {
+        _fallCount -= is_fsat ? FALL_COUNT_FAST_SPD : FALL_COUNT_SPD;
+
+        while(_fallCount < 0)
+        {
+            if(!CanMove(_position + Vector2Int.down, _rotate))
+            {
+                _fallCount = 0;
+                if (0 < --_groundFrame) return true;
+
+                Settle();
+                return false;
+            }
+            _position += Vector2Int.down;
+            _last_position += Vector2Int.down;
+            _fallCount += FALL_COUNT_UNIT;
+        }
+        return true;
+    }
     void Control()
     {
+        if (!Fall(logical.IsRaw(LogicalInput.Key.Down))) return;
+        if (_animationController.Update()) return;
+
         if (logical.IsRepeat(LogicalInput.Key.Right))
         {
             if (Translate(true)) return;
@@ -199,16 +231,14 @@ public class PlayerController : MonoBehaviour
     {
         UpdateInput();
 
-        if (!_animationController.Update())
-        {
-            Control();
-        }
+        Control();
+        Vector3 dy = Vector3.up * (float)_fallCount / (float)FALL_COUNT_UNIT;
         float anim_rate = _animationController.GetNormalized();
         _puyoControllers[0].SetPos(Interpolate(_position, RotState.Invalid, _last_position, RotState.Invalid, anim_rate));
         _puyoControllers[1].SetPos(Interpolate(_position, _rotate, _last_position, _last_rotate, anim_rate));
 
     }
-    static Vector3 Interpolate(Vector2Int pos,RotState rot,Vector2Int pos_last ,RotState rot_last,float rate)
+    static Vector3 Interpolate(Vector2Int pos, RotState rot, Vector2Int pos_last, RotState rot_last, float rate)
     {
         Vector3 p = Vector3.Lerp(
             new Vector3((float)pos.x, (float)pos.y, 0.0f),
@@ -217,14 +247,14 @@ public class PlayerController : MonoBehaviour
 
         if (rot == RotState.Invalid) return p;
 
-        float theta0  =0.5f * Mathf.PI * (float)(int)rot;
+        float theta0 = 0.5f * Mathf.PI * (float)(int)rot;
         float thetal = 0.5f * Mathf.PI * (float)(int)rot_last;
         float theta = thetal - theta0;
 
         if (+Mathf.PI < theta) theta = theta - 2.0f * Mathf.PI;
         if (theta < -Mathf.PI) theta = theta + 2.0f * Mathf.PI;
 
-        theta = theta0 +rate * theta;
+        theta = theta0 + rate * theta;
         return p + new Vector3(Mathf.Sin(theta), Mathf.Cos(theta), 0.0f);
     }
 }
