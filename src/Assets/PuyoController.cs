@@ -17,17 +17,18 @@ public enum PuyoType
 };
 
 [RequireComponent(typeof(Renderer))]
-
 public class PuyoController : MonoBehaviour
 {
     static readonly Color[] color_table = new Color[] {
         Color.black,
+
         Color.green,
         Color.red,
         Color.yellow,
         Color.blue,
         Color.magenta,
         Color.cyan,
+
         Color.gray,
     };
 
@@ -36,17 +37,17 @@ public class PuyoController : MonoBehaviour
     public void SetPuyoType(PuyoType type)
     {
         _type = type;
+
         my_renderer.material.color = color_table[(int)_type];
     }
-
     public PuyoType GetPuyoType()
     {
         return _type;
     }
 
-    public void SetPos(Vector3 Pos)
+    public void SetPos(Vector3 pos)
     {
-        this.transform.localPosition = Pos;
+        this.transform.localPosition = pos;
     }
 }
 

@@ -4,11 +4,11 @@ using UnityEngine;
 
 public class PuyoPair : MonoBehaviour
 {
-    [SerializeField] PuyoController[] Puyos = { default!, default! };
+    [SerializeField] PuyoController[] puyos = { default!, default! };
 
-    public void SetPuyoType(PuyoType axis,PuyoType child)
+    public void SetPuyoType(PuyoType axis, PuyoType child)
     {
-        Puyos[0].SetPuyoType(axis);
-        Puyos[1].SetPuyoType(child);
+        puyos[0].SetPuyoType(axis);
+        puyos[1].SetPuyoType(child);
     }
 }

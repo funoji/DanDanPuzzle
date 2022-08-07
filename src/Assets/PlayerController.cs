@@ -187,13 +187,12 @@ public class PlayerController : MonoBehaviour
     }
     void QuickDrop()
     {
-        // —‚¿‚ê‚éˆê”Ô‰º‚Ü‚Å—‚¿‚é Vector2Int pos = _position:
         Vector2Int pos = _position;
         do
         {
             pos += Vector2Int.down;
         } while (CanMove(pos, _rotate));
-        pos -= Vector2Int.down;// ˆê‚Âã‚ÌêŠ (ÅŒã‚É’u‚¯‚½êŠ) ‚É–ß‚·
+        pos -= Vector2Int.down;
         _position = pos;
         Settle();
     }
