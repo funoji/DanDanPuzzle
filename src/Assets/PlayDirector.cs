@@ -9,9 +9,8 @@ interface IState
     {
         Control = 0,
         GameOver = 1,
-
+        Falling = 2,
         MAX,
-
         Unchanged,
     }
 
@@ -20,31 +19,34 @@ interface IState
 }
 
 
+[RequireComponent(typeof(BoardController))]
 public class PlayDirector : MonoBehaviour
 {
     [SerializeField] GameObject player = default!;
     PlayerController _playerController = null;
     LogicalInput _logicalInput = new();
+    BoardController _boardController = default!;
 
     NextQueue _nextQueue = new();
     [SerializeField] PuyoPair[] nextPuyoPairs = { default!, default! };// 次nextのゲームオブジェクトの制御
 
     // 状態管理
-    IState.E_State _current_state = IState.E_State.Control;
+    IState.E_State _current_state = IState.E_State.Falling;
     static readonly IState[] states = new IState[(int)IState.E_State.MAX]{
         new ControlState(),
         new GameOverState(),
+        new FallingState(),
     };
 
     // Start is called before the first frame update
     void Start()
     {
         _playerController = player.GetComponent<PlayerController>();
+        _boardController = GetComponent<BoardController>();
         _logicalInput.Clear();
         _playerController.SetLogicalInput(_logicalInput);
 
         _nextQueue.Initialize();
-        // 状態の初期化
         InitializeState();
     }
 
@@ -67,9 +69,8 @@ public class PlayDirector : MonoBehaviour
     // 入力を取り込む
     void UpdateInput()
     {
-        LogicalInput.Key inputDev = 0;// デバイス値
+        LogicalInput.Key inputDev = 0;
 
-        // キー入力取得
         for (int i = 0; i < (int)LogicalInput.Key.Max; i++)
         {
             if (Input.GetKey(key_code_tbl[i]))
@@ -95,7 +96,7 @@ public class PlayDirector : MonoBehaviour
         }
         public IState.E_State Update(PlayDirector parent)
         {
-            return parent.player.activeSelf ? IState.E_State.Unchanged : IState.E_State.Control;
+            return parent.player.activeSelf ? IState.E_State.Unchanged : IState.E_State.Falling;
         }
     }
 
@@ -103,10 +104,22 @@ public class PlayDirector : MonoBehaviour
     {
         public IState.E_State Initialize(PlayDirector parent)
         {
-            SceneManager.LoadScene(0);// リトライ
+            SceneManager.LoadScene(0);
             return IState.E_State.Unchanged;
         }
         public IState.E_State Update(PlayDirector parent) { return IState.E_State.Unchanged; }
+    }
+
+    class FallingState : IState
+    {
+        public IState.E_State Initialize(PlayDirector parent)
+        {
+            return parent._boardController.CheckFall() ? IState.E_State.Unchanged : IState.E_State.Control;
+        }
+        public IState.E_State Update(PlayDirector parent)
+        {
+            return parent._boardController.Fall() ? IState.E_State.Unchanged : IState.E_State.Control;
+        }
     }
 
     void InitializeState()
@@ -118,7 +131,7 @@ public class PlayDirector : MonoBehaviour
         if (next_state != IState.E_State.Unchanged)
         {
             _current_state = next_state;
-            InitializeState();// 初期化で状態が変わるようなら、再帰的に初期を呼び出す
+            InitializeState();
         }
     }
 
@@ -129,7 +142,6 @@ public class PlayDirector : MonoBehaviour
         var next_state = states[(int)_current_state].Update(this);
         if (next_state != IState.E_State.Unchanged)
         {
-            // 次の状態に遷移
             _current_state = next_state;
             InitializeState();
         }
@@ -138,7 +150,6 @@ public class PlayDirector : MonoBehaviour
     // Update is called once per frame
     void FixedUpdate()
     {
-        // 入力を取り込む
         UpdateInput();
 
         UpdateState();
